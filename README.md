@@ -128,4 +128,4 @@ The screenshots come from the real vpn configuration. Server and home IP address
 
 ---
 
-<p align="center"><sub>Built by <strong>Sri Vibhav Raju Chennamadhava</strong>, M.S. Cybersecurity, University of North Texas</sub></p>
+<p align="center"><sub>Built by <strong>Sri Vibhav Raju Chennamadhava</strong></sub></p>
