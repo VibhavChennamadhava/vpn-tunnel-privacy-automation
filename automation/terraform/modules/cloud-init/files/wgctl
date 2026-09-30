@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+# wgctl: a small WireGuard server and peer manager.
+#
+# Runs on the VPN server. Installed by cloud-init to /usr/local/sbin/wgctl.
+#
+#   wgctl init   --port PORT --cidr A.B.C.0/24 --dns "IP, IP" [--endpoint HOST]
+#   wgctl add    NAME [--pubkey KEY] [--endpoint HOST] [--print] [--qr]
+#   wgctl remove NAME
+#   wgctl list
+#
+# Design notes:
+#   * Only /24 VPN networks are supported. The server is .1, clients start at .2.
+#   * Every client gets its own preshared key (extra layer on top of Curve25519).
+#   * With --pubkey the client keeps its private key. Otherwise the key pair is
+#     generated here and the private key is stored in the client config (mode 600).
+#   * Client configs route all IPv4 and IPv6 traffic into the tunnel. IPv6 is
+#     blackholed on purpose unless you enable it on the server, so it cannot leak.
+#
+# Test hooks (used by tests/test_wgctl.sh, not needed in production):
+#   WG_DIR, WG_IFACE, WGCTL_LOCK, WGCTL_SKIP_APPLY=1
+
+set -euo pipefail
+umask 077
+
+WG_DIR="${WG_DIR:-/etc/wireguard}"
+WG_IFACE="${WG_IFACE:-wg0}"
+SKIP_APPLY="${WGCTL_SKIP_APPLY:-0}"
+LOCK_FILE="${WGCTL_LOCK:-/run/wgctl.lock}"
+
+CONF="${WG_DIR}/${WG_IFACE}.conf"
+ENV_FILE="${WG_DIR}/wgctl.env"
+CLIENT_DIR="${WG_DIR}/clients"
+
+log() { printf 'wgctl: %s\n' "$*" >&2; }
+die() { log "error: $*"; exit 1; }
+
+usage() {
+  sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit 2
+}
+
+need() { command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"; }
+
+valid_name() { [[ "$1" =~ ^[A-Za-z0-9_-]{1,32}$ ]]; }
+
+acquire_lock() {
+  exec 9>"${LOCK_FILE}"
+  flock 9
+}
+
+apply_config() {
+  [[ "${SKIP_APPLY}" == "1" ]] && return 0
+  # syncconf applies peer changes without dropping existing sessions.
+  wg syncconf "${WG_IFACE}" <(wg-quick strip "${WG_IFACE}")
+}
+
+load_env() {
+  [[ -f "${ENV_FILE}" ]] || die "not initialised, run: wgctl init"
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+  : "${WG_PORT:?}" "${VPN_CIDR:?}" "${CLIENT_DNS:?}"
+}
+
+detect_endpoint() {
+  local host="${1:-}"
+  if [[ -z "${host}" && -n "${ENDPOINT:-}" ]]; then host="${ENDPOINT}"; fi
+  if [[ -z "${host}" ]]; then
+    host="$(curl -4fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)"
+  fi
+  [[ -n "${host}" ]] || die "could not determine the public endpoint, pass --endpoint HOST"
+  printf '%s' "${host}"
+}
+
+next_free_ip() {
+  local prefix="${VPN_CIDR%.*}" last used
+  for last in $(seq 2 254); do
+    used=0
+    if grep -qsE "^AllowedIPs = ${prefix//./\\.}\\.${last}/32\$" "${CONF}"; then used=1; fi
+    if (( used == 0 )); then printf '%s.%s' "${prefix}" "${last}"; return 0; fi
+  done
+  die "no free addresses left in ${VPN_CIDR}"
+}
+
+cmd_init() {
+  local port="" cidr="" dns="" endpoint=""
+  while (( $# )); do
+    case "$1" in
+      --port) port="$2"; shift 2 ;;
+      --cidr) cidr="$2"; shift 2 ;;
+      --dns) dns="$2"; shift 2 ;;
+      --endpoint) endpoint="$2"; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  [[ -n "${port}" && -n "${cidr}" && -n "${dns}" ]] || usage
+  if ! [[ "${port}" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
+    die "invalid port: ${port}"
+  fi
+  [[ "${cidr}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.0/24$ ]] || die "cidr must look like 10.66.66.0/24"
+  need wg
+
+  acquire_lock
+  if [[ -f "${CONF}" ]]; then log "already initialised, nothing to do"; return 0; fi
+
+  mkdir -p "${WG_DIR}" "${CLIENT_DIR}"
+  chmod 700 "${WG_DIR}" "${CLIENT_DIR}"
+
+  local priv pub prefix="${cidr%.*}"
+  priv="$(wg genkey)"
+  pub="$(printf '%s' "${priv}" | wg pubkey)"
+  printf '%s\n' "${priv}" > "${WG_DIR}/server.key"
+  printf '%s\n' "${pub}" > "${WG_DIR}/server.pub"
+
+  cat > "${CONF}" <<EOF
+[Interface]
+Address = ${prefix}.1/24
+ListenPort = ${port}
+PrivateKey = ${priv}
+EOF
+
+  cat > "${ENV_FILE}" <<EOF
+WG_PORT=${port}
+VPN_CIDR=${cidr}
+CLIENT_DNS="${dns}"
+ENDPOINT="${endpoint}"
+EOF
+
+  if [[ "${SKIP_APPLY}" != "1" ]]; then
+    systemctl enable --now "wg-quick@${WG_IFACE}"
+  fi
+  log "initialised ${WG_IFACE} on udp/${port}, network ${cidr}"
+}
+
+cmd_add() {
+  local name="${1:-}"; [[ -n "${name}" ]] || usage; shift
+  local pubkey="" endpoint_arg="" do_print=0 do_qr=0
+  while (( $# )); do
+    case "$1" in
+      --pubkey) pubkey="$2"; shift 2 ;;
+      --endpoint) endpoint_arg="$2"; shift 2 ;;
+      --print) do_print=1; shift ;;
+      --qr) do_qr=1; shift ;;
+      *) usage ;;
+    esac
+  done
+  valid_name "${name}" || die "client name must match [A-Za-z0-9_-]{1,32}"
+  need wg
+
+  acquire_lock
+  load_env
+  [[ ! -f "${CLIENT_DIR}/${name}.meta" ]] || die "client '${name}' already exists"
+
+  local ip client_priv client_pub psk server_pub endpoint
+  ip="$(next_free_ip)"
+  psk="$(wg genpsk)"
+  if [[ -n "${pubkey}" ]]; then
+    [[ "${pubkey}" =~ ^[A-Za-z0-9+/]{43}=$ ]] || die "--pubkey is not a valid WireGuard public key"
+    client_pub="${pubkey}"
+    client_priv="<PASTE_YOUR_PRIVATE_KEY_HERE>"
+  else
+    client_priv="$(wg genkey)"
+    client_pub="$(printf '%s' "${client_priv}" | wg pubkey)"
+  fi
+  server_pub="$(cat "${WG_DIR}/server.pub")"
+  endpoint="$(detect_endpoint "${endpoint_arg}")"
+
+  {
+    printf '\n# BEGIN client %s\n' "${name}"
+    printf '[Peer]\nPublicKey = %s\nPresharedKey = %s\nAllowedIPs = %s/32\n' "${client_pub}" "${psk}" "${ip}"
+    printf '# END client %s\n' "${name}"
+  } >> "${CONF}"
+
+  cat > "${CLIENT_DIR}/${name}.conf" <<EOF
+[Interface]
+PrivateKey = ${client_priv}
+Address = ${ip}/32
+DNS = ${CLIENT_DNS}
+
+[Peer]
+PublicKey = ${server_pub}
+PresharedKey = ${psk}
+Endpoint = ${endpoint}:${WG_PORT}
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25
+EOF
+  printf 'ip=%s\npubkey=%s\n' "${ip}" "${client_pub}" > "${CLIENT_DIR}/${name}.meta"
+
+  apply_config
+  log "added '${name}' as ${ip}, config stored at ${CLIENT_DIR}/${name}.conf"
+
+  if (( do_qr )); then
+    need qrencode
+    qrencode -t ansiutf8 < "${CLIENT_DIR}/${name}.conf" >&2
+  fi
+  if (( do_print )); then cat "${CLIENT_DIR}/${name}.conf"; fi
+}
+
+cmd_remove() {
+  local name="${1:-}"; [[ -n "${name}" ]] || usage
+  valid_name "${name}" || die "invalid client name"
+  acquire_lock
+  load_env
+  [[ -f "${CLIENT_DIR}/${name}.meta" ]] || die "no such client: ${name}"
+  sed -i "/^# BEGIN client ${name}\$/,/^# END client ${name}\$/d" "${CONF}"
+  rm -f "${CLIENT_DIR}/${name}.conf" "${CLIENT_DIR}/${name}.meta"
+  apply_config
+  log "removed '${name}'"
+}
+
+cmd_list() {
+  load_env
+  local meta name ip pubkey handshake
+  printf '%-20s %-16s %s\n' NAME ADDRESS LAST_HANDSHAKE
+  shopt -s nullglob
+  for meta in "${CLIENT_DIR}"/*.meta; do
+    name="$(basename "${meta}" .meta)"
+    ip="$(sed -n 's/^ip=//p' "${meta}")"
+    pubkey="$(sed -n 's/^pubkey=//p' "${meta}")"
+    handshake="n/a"
+    if [[ "${SKIP_APPLY}" != "1" ]]; then
+      handshake="$(wg show "${WG_IFACE}" latest-handshakes | awk -v k="${pubkey}" '$1==k {print $2}')"
+      if [[ -z "${handshake}" || "${handshake}" == "0" ]]; then
+        handshake="never"
+      else
+        handshake="$(date -d "@${handshake}" '+%Y-%m-%d %H:%M:%S')"
+      fi
+    fi
+    printf '%-20s %-16s %s\n' "${name}" "${ip}" "${handshake}"
+  done
+}
+
+main() {
+  local sub="${1:-}"; [[ -n "${sub}" ]] || usage; shift
+  case "${sub}" in
+    init) cmd_init "$@" ;;
+    add) cmd_add "$@" ;;
+    remove) cmd_remove "$@" ;;
+    list) cmd_list "$@" ;;
+    *) usage ;;
+  esac
+}
+
+main "$@"

@@ -1,0 +1,53 @@
+#!/usr/sbin/nft -f
+# Managed by Terraform (modules/cloud-init). Do not edit on the server.
+#
+# This replaces the default iptables rules shipped on Oracle's Ubuntu images.
+# Those rules REJECT everything except SSH, so opening a port in the VCN
+# security list alone is not enough. There are two firewalls on OCI.
+
+flush ruleset
+
+table inet filter {
+  chain input {
+    type filter hook input priority filter; policy drop;
+
+    ct state established,related accept
+    ct state invalid drop
+    iif "lo" accept
+
+    # ICMP keeps path MTU discovery and basic diagnostics working.
+    ip protocol icmp accept
+    ip6 nexthdr icmpv6 accept
+
+    # SSH. The VCN security list restricts the source to the admin CIDR.
+    tcp dport 22 ct state new accept
+
+    # WireGuard.
+    udp dport ${wg_port} accept
+  }
+
+  chain forward {
+    type filter hook forward priority filter; policy drop;
+
+    ct state established,related accept
+
+    # VPN clients are internet-only. They cannot reach the instance metadata
+    # service, the VCN, or any other private range through the tunnel.
+    iifname "wg0" ip daddr { 169.254.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } drop
+
+    # Clients may go out to the internet. Client to client traffic (wg0 to wg0)
+    # is not accepted, so peers are isolated from each other.
+    iifname "wg0" oifname != "wg0" accept
+  }
+
+  chain output {
+    type filter hook output priority filter; policy accept;
+  }
+}
+
+table ip nat {
+  chain postrouting {
+    type nat hook postrouting priority srcnat; policy accept;
+    ip saddr ${vpn_cidr} oifname != "wg0" masquerade
+  }
+}

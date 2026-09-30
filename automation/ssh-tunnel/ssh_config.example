@@ -1,0 +1,25 @@
+# Example ~/.ssh/config entry for a persistent SOCKS5 exit through your own server.
+# Replace the placeholders, then simply run:  ssh -N vpn-exit
+#
+# Windows: the same file works with the built-in OpenSSH client at
+#   C:\Users\<you>\.ssh\config
+
+Host vpn-exit
+    HostName <SERVER_PUBLIC_IP>
+    User ubuntu
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+
+    # SOCKS5 proxy on this machine only. Never bind to 0.0.0.0.
+    DynamicForward 127.0.0.1:1080
+    ExitOnForwardFailure yes
+
+    # Notice a dead tunnel within about 90 seconds instead of hanging forever.
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+
+    # Reuse one connection for repeated ssh and scp commands to the same host.
+    ControlMaster auto
+    ControlPath ~/.ssh/cm-%r@%h:%p
+    ControlPersist 10m

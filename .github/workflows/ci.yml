@@ -1,0 +1,67 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck wireguard-tools qrencode openssh-server dnsutils tesseract-ocr nftables python3-pil
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Style (no em or en dashes)
+        run: python3 tools/check_style.py
+
+      - name: Shellcheck
+        run: make shellcheck
+
+      - name: Terraform format
+        run: tofu fmt -check -recursive automation/terraform
+
+      - name: Unit and integration tests
+        run: |
+          bash tests/test_wgctl.sh
+          bash tests/test_verify_vpn.sh
+          bash tests/test_ssh_tools.sh
+          bash tests/test_cloud_init_render.sh
+          python3 tests/test_screenshot_guard.py
+
+      - name: Terraform init and validate
+        run: |
+          cd automation/terraform
+          tofu init -backend=false
+          tofu validate
+
+      - name: Screenshot scan
+        run: python3 tools/screenshot_guard.py scan docs/images --boxes tools/redaction-boxes.json --root docs/images --fast
+
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check relative links and images in markdown
+        run: python3 tools/check_links.py

@@ -1,0 +1,25 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# Terraform and OpenTofu: state can hold secrets, variables hold your OCIDs
+.terraform/
+.terraform.lock.hcl.bak
+*.tfstate
+*.tfstate.*
+crash.log
+terraform.tfvars
+*.auto.tfvars
+
+# Generated client configs contain private keys
+clients/
+*.conf.local
+
+# Private redaction data (real IPs, account names). Never commit.
+tools/redaction.local.txt
+*.local.*
+
+# Test scratch
+__pycache__/
+*.pyc

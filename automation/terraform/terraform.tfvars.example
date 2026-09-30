@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is git-ignored.
+
+region           = "us-phoenix-1"
+compartment_ocid = "ocid1.compartment.oc1..replace_me"
+
+# cat ~/.ssh/id_ed25519.pub
+ssh_public_key = "ssh-ed25519 AAAA...replace_me you@laptop"
+
+# Your current public address with /32, for example: curl -4 ifconfig.me
+admin_cidr = "203.0.113.7/32"
+
+# Optional
+# shape           = "VM.Standard.E2.1.Micro"   # x86 fallback if A1 is out of capacity
+# initial_clients = ["laptop", "phone"]
+# client_dns      = ["1.1.1.1", "1.0.0.1"]

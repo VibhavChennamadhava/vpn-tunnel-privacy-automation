@@ -1,0 +1,26 @@
+# systemd user unit that keeps the SOCKS5 tunnel alive and restarts it after drops.
+#
+# Install (Linux, macOS users can use launchd instead):
+#   mkdir -p ~/.config/systemd/user
+#   cp socks-tunnel.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now socks-tunnel
+#   journalctl --user -u socks-tunnel -f
+#
+# Requires an ssh_config entry named vpn-exit (see ssh_config.example) and autossh.
+
+[Unit]
+Description=Persistent SOCKS5 tunnel over SSH (vpn-exit)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=AUTOSSH_GATETIME=0
+Environment=AUTOSSH_POLL=60
+ExecStart=/usr/bin/autossh -M 0 -N vpn-exit
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

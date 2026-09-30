@@ -1,0 +1,257 @@
+{
+ "part2/01-oracle-marketplace-openvpn.jpg": [
+  [
+   0.1,
+   0.005,
+   0.76,
+   0.035,
+   "url bar"
+  ],
+  [
+   0.03,
+   0.04,
+   1.0,
+   0.07,
+   "bookmarks"
+  ]
+ ],
+ "part2/02-instance-networking-vcn.png": [
+  [
+   0.1,
+   0.005,
+   0.76,
+   0.035,
+   "url bar"
+  ],
+  [
+   0.03,
+   0.04,
+   1.0,
+   0.07,
+   "bookmarks"
+  ]
+ ],
+ "part2/04-attach-ssh-public-key.png": [
+  [
+   0.1,
+   0.005,
+   0.76,
+   0.035,
+   "url bar"
+  ],
+  [
+   0.03,
+   0.04,
+   1.0,
+   0.07,
+   "bookmarks"
+  ]
+ ],
+ "part2/06-instance-running.png": [
+  [
+   0.1,
+   0.005,
+   0.76,
+   0.035,
+   "url bar"
+  ],
+  [
+   0.03,
+   0.04,
+   1.0,
+   0.07,
+   "bookmarks"
+  ],
+  [
+   0.315,
+   0.625,
+   0.54,
+   0.66,
+   "ocid"
+  ],
+  [
+   0.315,
+   0.725,
+   0.45,
+   0.75,
+   "compartment"
+  ],
+  [
+   0.315,
+   0.945,
+   0.4,
+   0.975,
+   "public ip"
+  ]
+ ],
+ "part2/07-security-list-ingress-rules.png": [
+  [
+   0.1,
+   0.005,
+   0.76,
+   0.035,
+   "url bar"
+  ],
+  [
+   0.03,
+   0.04,
+   1.0,
+   0.07,
+   "bookmarks"
+  ]
+ ],
+ "part1/05-ssh-session-established.jpg": [
+  [
+   0.165,
+   0.24,
+   0.31,
+   0.272,
+   "ipv6"
+  ]
+ ],
+ "part1/08-ip-after-tunnel.jpg": [
+  [
+   0.15,
+   0.54,
+   0.35,
+   0.582,
+   "ipv6"
+  ],
+  [
+   0.73,
+   0.583,
+   0.85,
+   0.615,
+   "ipv6 map label"
+  ]
+ ],
+ "part2/03-puttygen-rsa-keypair.jpg": [
+  [
+   0.04,
+   0.185,
+   0.96,
+   0.345,
+   "public key text"
+  ]
+ ],
+ "part2/05-instance-provisioning.png": [
+  [
+   0.09,
+   0.006,
+   0.79,
+   0.032,
+   "url bar"
+  ],
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ]
+ ],
+ "part2/09-openvpn-as-first-boot-config.png": [
+  [
+   0.185,
+   0.403,
+   0.325,
+   0.427,
+   "password"
+  ],
+  [
+   0.39,
+   0.898,
+   0.535,
+   0.924,
+   "password"
+  ]
+ ],
+ "part2/10-admin-activation-manager.png": [
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ]
+ ],
+ "part2/11-admin-status-overview.png": [
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ]
+ ],
+ "part2/12-vpn-routing-dns-settings.png": [
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ]
+ ],
+ "part2/14-user-permissions-create-user.png": [
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ]
+ ],
+ "part2/15-client-profile-connected.png": [
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ]
+ ],
+ "part2/16-ip-before-vpn.jpg": [
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ]
+ ],
+ "part2/17-client-cert-trust-prompt.png": [
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ],
+  [
+   0.28,
+   0.333,
+   0.385,
+   0.364,
+   "server url in client"
+  ]
+ ],
+ "part2/18-ip-after-vpn-success.jpg": [
+  [
+   0.03,
+   0.043,
+   0.99,
+   0.068,
+   "bookmarks"
+  ]
+ ],
+ "part2/13-openvpn-connect-client.png": [
+  [
+   0.03,
+   0.043,
+   0.64,
+   0.068,
+   "bookmarks"
+  ]
+ ]
+}

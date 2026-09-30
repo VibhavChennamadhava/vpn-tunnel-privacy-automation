@@ -1,0 +1,22 @@
+repos:
+  - repo: local
+    hooks:
+      - id: style
+        name: no em dashes or trailing spaces
+        entry: python3 tools/check_style.py
+        language: system
+        pass_filenames: true
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+      - id: screenshot-guard
+        name: scan screenshots for secrets
+        entry: python3 tools/screenshot_guard.py scan --fast
+        language: system
+        files: '\.(png|jpe?g)$'
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
