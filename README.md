@@ -85,7 +85,7 @@ flowchart LR
 
 In the lab the only ingress rule added was TCP `943,443` from `0.0.0.0/0`, so the client connected over TCP 443. The server also listens on UDP 1194, but no rule opened it.
 
-## Part 3: optional automation
+## Part 3: Automation
 
 The lab steps were done by hand in web consoles. [Part 3](docs/part3-automation.md) shows how to repeat the idea as code: Terraform creates the Oracle network and instance, cloud-init installs and locks down a WireGuard server, and small scripts add clients and prove the tunnel works. It is a separate, newer build and was tested locally, not against a live Oracle account. The page says exactly what was and was not tested.
 
@@ -114,7 +114,7 @@ cd automation/terraform && cp terraform.tfvars.example terraform.tfvars   # then
 └── .github/workflows/ci.yml
 ```
 
-## Things I would change before trusting the lab build
+## Things I would do if i forked this repositoru
 
 - **Self-signed certificate.** The client showed `SELF_SIGNED_CERT_IN_CHAIN` and the warning was accepted. A real deployment needs a proper hostname and certificate.
 - **Admin UI open to `0.0.0.0/0`.** The ingress rule exposes port 943, which includes the admin UI, to the whole internet. Restrict it to your own address.
@@ -124,7 +124,7 @@ cd automation/terraform && cp terraform.tfvars.example terraform.tfvars   # then
 
 ## A note on the screenshots
 
-The screenshots come from the real lab. Server and home IP addresses, the auto-generated password, SSH public key text, Oracle resource IDs, the tenancy name, the browser address bar and bookmarks bar are blacked out. `tools/screenshot_guard.py` scans them with OCR and runs in CI, but OCR can miss things, so every image was also checked by eye. If you fork this, look at your own screenshots before publishing.
+The screenshots come from the real vpn configuration. Server and home IP addresses, the auto-generated password, SSH public key text, Oracle resource IDs, the tenancy name, the browser address bar and bookmarks bar are blacked out. `tools/screenshot_guard.py` scans them with OCR and runs in CI, but OCR can miss things, so every image was also checked by eye. If you fork this, look at your own screenshots before publishing.
 
 ---
 
